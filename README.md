@@ -1,42 +1,45 @@
-# simple_IOTgateway
+# ESP32 MQTT with HiveMQ Cloud and Kafka in Docker Tutorial
 
-## Overview
-
-The `simple_IOTgateway` project demonstrates a basic IoT data pipeline where an ESP32 DEV Module collects sensor data (e.g., temperature, humidity) and publishes it to an MQTT topic on HiveMQ Cloud. The data is then ingested into a local 3-node Kafka cluster running in Docker using Kafka Connect. This setup enables real-time data streaming from the ESP32 to Kafka via HiveMQ Cloud without exposing your public IP.
-
-### Components
-- **ESP32 DEV Module**: Collects and publishes sensor data to HiveMQ Cloud.
-- **HiveMQ Cloud**: A managed MQTT broker that receives data from the ESP32.
-- **Kafka Cluster**: A 3-node Kafka cluster running locally in Docker to store the data.
-- **Kafka Connect**: A connector that bridges HiveMQ Cloud and the Kafka cluster.
+This guide explains how to set up your ESP32 DEV Module using PlatformIO to connect to HiveMQ Cloud via MQTT. Follow the steps below to create a new PlatformIO project, flash your ESP32, and verify the connection.
 
 ---
 
 ## Prerequisites
 
-- **Arduino IDE**: For flashing the ESP32. Download from [Arduino Official Website](https://www.arduino.cc/en/software).
-- **Docker Desktop**: For running the Kafka cluster and Kafka Connect. Download from [Docker Official Website](https://www.docker.com/products/docker-desktop).
-- **PowerShell or CMD**: For running Docker and Kafka commands.
+- **PlatformIO IDE**: Install the PlatformIO extension for Visual Studio Code from [PlatformIO](https://platformio.org/platformio-ide).
+- **Docker Desktop**: Required for running the Kafka cluster and Kafka Connect. Download from [Docker Official Website](https://www.docker.com/products/docker-desktop).
+- **Terminal (PowerShell, CMD, or VS Code integrated terminal)**: For running Docker and Kafka commands.
 - **HiveMQ Cloud Account**: Sign up at [HiveMQ Cloud](https://www.hivemq.com/cloud/) and note your broker URL, username, and password.
-- **Wi-Fi Access**: For the ESP32 to connect to HiveMQ Cloud.
+- **Wi-Fi Access**: Needed for the ESP32 to connect to HiveMQ Cloud.
 
 ---
 
-## Step 1: Set Up the ESP32 DEV Module
+## Step 1: Set Up the ESP32 DEV Module with PlatformIO
 
-### 1.1 Install Arduino IDE
-- Download and install the Arduino IDE.
-- Open the Arduino IDE and go to **File > Preferences**.
-- In the "Additional Boards Manager URLs" field, add:
+### 1.1 Install and Configure PlatformIO
+
+- **Install the Extension**: Add the PlatformIO IDE extension in Visual Studio Code.
+- **Configure Boards**:  
+  Open PlatformIO Home, then navigate to **Boards**.  
+  If necessary, add the ESP32 boards by including the following URL in your settings:
   ```
   https://dl.espressif.com/dl/package_esp32_index.json
   ```
-- Go to **Tools > Board > Boards Manager**, search for "ESP32," and install the ESP32 board package.
 
-### 1.2 Flash the ESP32
-- Connect your ESP32 DEV Module to your computer via USB.
-- In the Arduino IDE, select **Tools > Board > ESP32 Dev Module**.
-- Use the following code (replace placeholders with your Wi-Fi and HiveMQ Cloud credentials):
+### 1.2 Create a New PlatformIO Project
+
+- **New Project**: In PlatformIO Home, click **New Project**.
+- **Project Settings**:
+  - **Name**: e.g., `ESP32_MQTT`
+  - **Board**: Select **ESP32 Dev Module**
+  - **Framework**: Choose **Arduino**
+- Click **Finish**. PlatformIO will generate the project structure.
+
+### 1.3 Add the Firmware Code
+
+- **Edit Code**: Open `src/main.cpp` and replace its content with the code below.  
+  Update the placeholders with your actual Wi-Fi and HiveMQ Cloud credentials.
+
   ```cpp
   #include <WiFi.h>
   #include <PubSubClient.h>
@@ -50,13 +53,24 @@ The `simple_IOTgateway` project demonstrates a basic IoT data pipeline where an 
   const int mqtt_port = 8883; // Default for SSL
   const char* mqtt_user = "YOUR_HIVEMQ_USERNAME";
   const char* mqtt_pass = "YOUR_HIVEMQ_PASSWORD";
-    // direct into ./ESP32_MQTT/src/main.cpp for further info  
-  ```
-- Replace `YOUR_WIFI_SSID`, `YOUR_WIFI_PASSWORD`, `YOUR_HIVEMQ_BROKER_URL`, `YOUR_HIVEMQ_USERNAME`, and `YOUR_HIVEMQ_PASSWORD` with your actual credentials.
-- Click the **Upload** button to flash the code to your ESP32.
-- Open the Serial Monitor (**Tools > Serial Monitor**) at 115200 baud to verify the ESP32 connects to Wi-Fi and HiveMQ Cloud.
 
-**Note**: Ensure your ESP32 is publishing data to the `/esp32/` topic on HiveMQ Cloud.
+  // etc...
+  ```
+
+### 1.4 Build and Upload the Firmware
+
+- **Connect Hardware**: Plug your ESP32 DEV Module into your computer via USB.
+- **Build the Project**: In the PlatformIO sidebar, click the **Build** button to compile your project.
+- **Upload the Firmware**: After a successful build, click the **Upload** button to flash your ESP32.
+- **Monitor Output**: Watch the terminal output for build and upload progress.
+
+### 1.5 Monitor the Serial Output
+
+- **Serial Monitor**: Open the Serial Monitor in PlatformIO by clicking the Serial Monitor icon or using the command palette.
+- **Baud Rate**: Set it to 115200.
+- **Verify Connection**: Check that your ESP32 connects to your Wi-Fi network and successfully establishes a connection with the HiveMQ Cloud broker.
+
+> **Note**: Ensure your ESP32 publishes data to the `/esp32/` topic on HiveMQ Cloud.
 
 ---
 
@@ -79,13 +93,9 @@ The `simple_IOTgateway` project demonstrates a basic IoT data pipeline where an 
 ### 3.1 Navigate to the Docker Directory
 - Open CMD or PowerShell and change to your project’s Docker directory (adjust the path as needed):
   ```
-  cd D:\git_workspace\simple_IOTgateway\docker
+  cd .\simple_IOTgateway\docker
   ```
-
-### 3.2 Create the Docker Compose File
-- Direct into a file named `docker-compose.yml` in the `docker` directory.
-
-### 3.3 Run the Kafka Cluster and Kafka Connect
+### 3.2 Run the Kafka Cluster and Kafka Connect
 - Start the Docker containers in detached mode:
   ```
   docker compose up -d
@@ -96,7 +106,7 @@ The `simple_IOTgateway` project demonstrates a basic IoT data pipeline where an 
   ```
   You should see `kafk-1`, `kafk-2`, `kafk-3`, and `connect`.
 
-### 3.4 Install the MQTT Source Connector
+### 3.3 Install the MQTT Source Connector
 - Access the Kafka Connect container:
   ```
   docker exec -it connect bash
@@ -115,11 +125,11 @@ The `simple_IOTgateway` project demonstrates a basic IoT data pipeline where an 
   docker compose restart connect
   ```
 
-### 3.5 Configure the MQTT Source Connector
+### 3.4 Configure the MQTT Source Connector
 - In the `docker` directory, direct int a file named `mqtt-source.json`
 - Replace `YOUR_HIVEMQ_BROKER_URL`, `YOUR_HIVEMQ_USERNAME`, and `YOUR_HIVEMQ_PASSWORD` with your actual HiveMQ Cloud credentials.
 
-### 3.6 Create the Connector
+### 3.5 Create the Connector
 - In PowerShell (preferred due to JSON handling), run:
   ```
   $json = Get-Content -Path ".\mqtt-source.json" -Raw
@@ -143,11 +153,4 @@ The `simple_IOTgateway` project demonstrates a basic IoT data pipeline where an 
   ```
   "eyJ0aW1lc3RhbXAiOiIyMDI1LTAzLTA2VDA0OjMyOjE4WiIsInRlbXBlcmF0dXJlIjowLCJodW1pZGl0eSI6MCwic29pbF9tb2lzdHVyZSI6MjMxNywibGlnaHQiOjE1NTZ9"
   ```
-
----
-
-## Conclusion
-
-You’ve successfully set up the `simple_IOTgateway` project! Your ESP32 is now sending data to HiveMQ Cloud, and Kafka is ingesting it locally via Docker. If you encounter issues, double-check your credentials, network settings, or container logs (`docker logs <container_name>`). Enjoy your IoT data pipeline!
-
 --- 
