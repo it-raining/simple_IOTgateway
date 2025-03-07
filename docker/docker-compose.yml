@@ -2,14 +2,16 @@ version: '3'
 networks:
   kafka-net:
     driver: bridge
+  hdfs-net:
+    driver: bridge
 
 services:
   kafk-1:
-    # Your existing kafk-1 configuration (keep as is)
     image: apache/kafka:3.9.0
     container_name: kafk-1
     hostname: kafk-1
     networks:
+      - hdfs-net
       - kafka-net
     environment:
       - KAFKA_BROKER_ID=1
@@ -30,11 +32,11 @@ services:
       - 29092:9094
 
   kafk-2:
-    # Similar for kafk-2, adjust ports and IDs
     image: apache/kafka:3.9.0
     container_name: kafk-2
     hostname: kafk-2
     networks:
+      - hdfs-net
       - kafka-net
     environment:
       - KAFKA_BROKER_ID=2
@@ -55,11 +57,11 @@ services:
       - 39092:9094
 
   kafk-3:
-    # Similar for kafk-3, adjust ports and IDs
     image: apache/kafka:3.9.0
     container_name: kafk-3
     hostname: kafk-3
     networks:
+      - hdfs-net
       - kafka-net
     environment:
       - KAFKA_BROKER_ID=3
@@ -104,3 +106,44 @@ services:
       - CONNECT_PLUGIN_PATH=/usr/share/java,/usr/share/confluent-hub-components
     ports:
       - 8083:8083
+    command: [ "bash", "-c", "confluent-hub install --no-prompt confluentinc/kafka-connect-mqtt:latest && confluent-hub install --no-prompt confluentinc/kafka-connect-hdfs:latest && /etc/confluent/docker/run" ]
+
+  spark:
+    image: bitnami/spark:latest
+    container_name: spark
+    hostname: spark
+    networks:
+      - hdfs-net
+      - kafka-net
+    volumes:
+      - ./spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+    depends_on:
+      - hdfs-namenode
+      - kafk-1
+      - kafk-2
+      - kafk-3
+  hdfs-namenode:
+    image: bde2020/hadoop-namenode:latest
+    container_name: hdfs-namenode
+    hostname: hdfs-namenode
+    networks:
+      - hdfs-net
+    environment:
+      - CLUSTER_NAME=test
+      - CORE_CONF_fs_defaultFS=hdfs://hdfs-namenode:8020
+      - HDFS_CONF_dfs_replication=1
+    ports:
+      - "9870:9870"
+      - "8020:8020"
+
+  hdfs-datanode:
+    image: bde2020/hadoop-datanode:latest
+    container_name: hdfs-datanode
+    hostname: hdfs-datanode
+    networks:
+      - hdfs-net
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://hdfs-namenode:8020
+      - HDFS_CONF_dfs_replication=1
+    depends_on:
+      - hdfs-namenode

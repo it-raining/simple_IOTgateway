@@ -96,45 +96,34 @@ The `simple_IOTgateway` project demonstrates a basic IoT data pipeline where an 
   ```
   You should see `kafk-1`, `kafk-2`, `kafk-3`, and `connect`.
 
-### 3.4 Install the MQTT Source Connector
-- Access the Kafka Connect container:
-  ```
-  docker exec -it connect bash
-  ```
-- Install the MQTT connector:
-  ```
-  confluent-hub install confluentinc/kafka-connect-mqtt:latest
-  ```
-- When prompted, select option `2` (e.g., `/usr/share/confluent-hub-components`) and complete the installation.
-- Exit the container:
-  ```
-  exit
-  ```
-- Restart Kafka Connect to load the connector:
-  ```
-  docker compose restart connect
-  ```
+### Deploying the Connectors
 
-### 3.5 Configure the MQTT Source Connector
-- In the `docker` directory, direct int a file named `mqtt-source.json`
-- Replace `YOUR_HIVEMQ_BROKER_URL`, `YOUR_HIVEMQ_USERNAME`, and `YOUR_HIVEMQ_PASSWORD` with your actual HiveMQ Cloud credentials.
+Once your Kafka Connect container is running with the connectors installed, you can deploy each connector using PowerShell’s `Invoke-RestMethod` (or any HTTP client). For example, to create the MQTT Source Connector:
 
-### 3.6 Create the Connector
-- In PowerShell (preferred due to JSON handling), run:
-  ```
-  $json = Get-Content -Path ".\mqtt-source.json" -Raw
-  Invoke-WebRequest -Method Post -Headers @{"Content-Type" = "application/json"} -Body $json -Uri "http://localhost:8083/connectors"
-  ```
-- Alternatively, in CMD with `curl` (if installed):
-  ```
-  curl -X POST -H "Content-Type: application/json" --data @mqtt-source.json http://localhost:8083/connectors
-  ```
+```powershell
+$json = Get-Content -Path ".\mqtt-source.json" -Raw
+Invoke-RestMethod -Method Post -Headers @{"Content-Type"="application/json"} -Body $json -Uri "http://localhost:8083/connectors"
+```
+
+And then similarly for the HDFS Sink Connector:
+
+```powershell
+$json = Get-Content -Path ".\hdfs-sink.json" -Raw
+Invoke-RestMethod -Method Post -Headers @{"Content-Type"="application/json"} -Body $json -Uri "http://localhost:8083/connectors"
+```
+### Checking the Connectors
+docker exec -it connect ls /usr/share/confluent-hub-components
 
 ---
+
 
 ## Step 4: Verify the Data Flow
 
 - Use an MQTT client (e.g., MQTT Explorer) to publish a test message to `/esp32/` on HiveMQ Cloud.
+- Create topic from Kafka
+    ```
+    docker exec -it kafk-1 /opt/kafka/bin/kafka-topics.sh --create --topic esp32_data --bootstrap-server kafk-1:9092   
+    ```
 - Consume the data from Kafka in CMD:
   ```
   docker exec -it kafk-1 /opt/kafka/bin/kafka-console-consumer.sh --topic "esp32_data" --bootstrap-server kafk-1:9092,kafk-2:9092,kafk-3:9092 --from-beginning
