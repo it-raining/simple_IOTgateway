@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+
+<configuration>
+
+    <property>
+        <name>fs.defaultFS</name>
+        <value>hdfs://namenode:9000</value> <!-- Trỏ đến NameNode trong Docker container -->
+    </property>
+
+    <!-- Thư mục tạm thời Hadoop trong Docker -->
+    <property>
+        <name>hadoop.tmp.dir</name>
+        <value>/tmp/hadoop/dfs/tempdir</value> <!-- Đảm bảo thư mục này có thể truy cập từ container -->
+    </property>
+
+    <!-- Thời gian lưu trữ trong thùng rác (ở đây là 24 giờ) -->
+    <property>
+        <name>fs.trash.interval</name>
+        <value>1440</value>
+    </property>
+
+    <!-- Người dùng static trong HTTP -->
+    <property>
+        <name>hadoop.http.staticuser.user</name>
+        <value>root</value>
+    </property>
+
+    <!-- Tắt quyền truy cập -->
+    <property>
+        <name>dfs.permissions.enabled</name>
+        <value>false</value>
+    </property>
+</configuration>
