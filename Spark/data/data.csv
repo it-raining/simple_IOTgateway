@@ -1,3 +1,1 @@
-name,age
-John Doe,21
-Jane Doe,25
+{"timestamp":"2025-03-11T09:29:11Z","temperature":0,"humidity":0,"soil_moisture":2228,"light":4095}
