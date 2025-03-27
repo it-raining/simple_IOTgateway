@@ -1,13 +1,12 @@
 <configuration>
     <property>
         <name>dfs.namenode.name.dir</name>
-        <value>/opt/hadoop/data/nameNode</value> <!-- Đường dẫn trong container -->
+        <value>/opt/hadoop/data/nameNode</value> 
     </property>
 
     <property>
         <name>dfs.datanode.data.dir</name>
-        <value>/opt/hadoop/data/dataNode</value> <!-- Đường dẫn trong container -->
-    </property>
+        <value>/opt/hadoop/data/dataNode</value>
 
     <property>
         <name>dfs.replication</name>

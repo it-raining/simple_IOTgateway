@@ -1,13 +1,7 @@
-version: '3'
-networks:
-  kafka-net:
-    driver: bridge
-  shared-network:
-    external: true
+version: "3"
 
 services:
   kafk-1:
-    # Your existing kafk-1 configuration (keep as is)
     image: apache/kafka:3.9.0
     container_name: kafk-1
     hostname: kafk-1
@@ -30,10 +24,9 @@ services:
       - KAFKA_LOG_DIRS=/tmp/kraft-combined_logs
       - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
     ports:
-      - 29092:9094
+      - "29092:9094"
 
   kafk-2:
-    # Similar for kafk-2, adjust ports and IDs
     image: apache/kafka:3.9.0
     container_name: kafk-2
     hostname: kafk-2
@@ -56,10 +49,9 @@ services:
       - KAFKA_LOG_DIRS=/tmp/kraft-combined_logs
       - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
     ports:
-      - 39092:9094
+      - "39092:9094"
 
   kafk-3:
-    # Similar for kafk-3, adjust ports and IDs
     image: apache/kafka:3.9.0
     container_name: kafk-3
     hostname: kafk-3
@@ -82,7 +74,7 @@ services:
       - KAFKA_LOG_DIRS=/tmp/kraft-combined_logs
       - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
     ports:
-      - 49092:9094
+      - "49092:9094"
 
   connect:
     image: confluentinc/cp-kafka-connect:7.0.1
@@ -109,4 +101,155 @@ services:
       - CONNECT_LOG4J_ROOT_LOGLEVEL=INFO
       - CONNECT_PLUGIN_PATH=/usr/share/java,/usr/share/confluent-hub-components
     ports:
-      - 8083:8083
+      - "8083:8083"
+    command: [ "bash", "-c", "confluent-hub install --no-prompt confluentinc/kafka-connect-mqtt:latest && confluent-hub install --no-prompt confluentinc/kafka-connect-hdfs:latest && /etc/confluent/docker/run" ]
+
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    restart: always
+    volumes:
+      - ../HDFS/namenode:/hadoop/dfs/name
+    environment:
+      - CLUSTER_NAME=test
+    env_file:
+      - ./hadoop-hive.env
+    ports:
+      - "50070:50070"
+      - "8020:8020"
+    networks:
+      - hdfs-net
+      - shared-network
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    depends_on:
+      - namenode
+    volumes:
+      - ../HDFS/datanode:/hadoop/dfs/data
+    env_file:
+      - ./hadoop-hive.env
+    ports:
+      - "50075:50075"
+    networks:
+      - hdfs-net
+      - shared-network
+
+  hive-server:
+    image: gamberooni/hive-postgres-metastore:hive-3.1.2
+    container_name: hive-server
+    env_file:
+      - ./hadoop-hive.env
+    environment:
+      HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore/metastore"
+      SERVICE_PRECONDITION: "hive-metastore:9083"
+    ports:
+      - "10000:10000"
+    depends_on:
+      - hive-metastore
+      - hive-metastore-postgresql
+      - namenode
+      - datanode
+    networks:
+      - shared-network
+      - hdfs-net
+    volumes:
+      - ../HDFS/hadoop_config/core-site.xml:/etc/hadoop/conf/core-site.xml
+
+  hive-metastore:
+    image: gamberooni/hive-postgres-metastore:hive-3.1.2
+    container_name: hive-metastore
+    env_file:
+      - ./hadoop-hive.env
+    command: /opt/hive/bin/hive --service metastore
+    environment:
+      SERVICE_PRECONDITION: "namenode:50070 datanode:50075 hive-metastore-postgresql:5432"
+    ports:
+      - "9083:9083"
+    depends_on:
+      - hive-metastore-postgresql
+      - namenode
+      - datanode
+    networks:
+      - shared-network
+      - hdfs-net
+      
+  hive-metastore-postgresql:
+    image: bde2020/hive-metastore-postgresql:3.1.0
+    container_name: hive-metastore-postgresql
+    ports:
+      - "5432:5432"
+    volumes:
+      - ../PostgreSQL/:/var/lib/postgresql/data
+    networks:
+      - shared-network
+      - hdfs-net
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    environment:
+      - MINIO_ROOT_USER=test      
+      - MINIO_ROOT_PASSWORD=12345678
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Console
+    volumes:
+      - minio_data:/data
+      - minio_config:/root/.minio
+    networks:
+      - shared-network
+
+  spark-master:
+    image: gamberooni/spark-hive-metastore:spark-master-3.1.1
+    container_name: spark-master
+    hostname: spark-master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_USER=spark
+      - INIT_DAEMON_STEP=setup_spark
+    volumes:
+      - ../:/opt/spark
+      - ../HDFS/hadoop_config/core-site.xml:/etc/hadoop/conf/core-site.xml
+    networks:
+      - data_network
+      - shared-network
+
+  spark-worker:
+    image: gamberooni/spark-hive-metastore:spark-worker-3.1.1
+    container_name: spark-worker
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
+    networks:
+      - data_network
+      - shared-network
+
+volumes:
+  minio_data:
+  minio_config:
+  metastore_db_data:
+
+networks:
+  kafka-net:
+    driver: bridge
+  hdfs-net:
+    driver: bridge
+  data_network:
+    driver: bridge
+  shared-network:
+    driver: bridge
