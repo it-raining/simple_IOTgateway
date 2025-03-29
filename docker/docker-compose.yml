@@ -6,7 +6,6 @@ services:
     container_name: kafk-1
     hostname: kafk-1
     networks:
-      - kafka-net
       - shared-network
     environment:
       - KAFKA_BROKER_ID=1
@@ -31,7 +30,6 @@ services:
     container_name: kafk-2
     hostname: kafk-2
     networks:
-      - kafka-net
       - shared-network
     environment:
       - KAFKA_BROKER_ID=2
@@ -56,7 +54,6 @@ services:
     container_name: kafk-3
     hostname: kafk-3
     networks:
-      - kafka-net
       - shared-network
     environment:
       - KAFKA_BROKER_ID=3
@@ -84,7 +81,6 @@ services:
       - kafk-2
       - kafk-3
     networks:
-      - kafka-net
       - shared-network
     environment:
       - CONNECT_BOOTSTRAP_SERVERS=kafk-1:9094,kafk-2:9094,kafk-3:9094
@@ -115,10 +111,9 @@ services:
     env_file:
       - ./hadoop-hive.env
     ports:
-      - "50070:50070"
+      - "9870:9870"
       - "8020:8020"
     networks:
-      - hdfs-net
       - shared-network
 
   datanode:
@@ -131,9 +126,8 @@ services:
     env_file:
       - ./hadoop-hive.env
     ports:
-      - "50075:50075"
+      - "9864:9864"
     networks:
-      - hdfs-net
       - shared-network
 
   hive-server:
@@ -151,11 +145,10 @@ services:
       - hive-metastore-postgresql
       - namenode
       - datanode
-    networks:
-      - shared-network
-      - hdfs-net
     volumes:
       - ../HDFS/hadoop_config/core-site.xml:/etc/hadoop/conf/core-site.xml
+    networks:
+      - shared-network
 
   hive-metastore:
     image: gamberooni/hive-postgres-metastore:hive-3.1.2
@@ -164,7 +157,7 @@ services:
       - ./hadoop-hive.env
     command: /opt/hive/bin/hive --service metastore
     environment:
-      SERVICE_PRECONDITION: "namenode:50070 datanode:50075 hive-metastore-postgresql:5432"
+      SERVICE_PRECONDITION: "namenode:9870 datanode:9864 hive-metastore-postgresql:5432"
     ports:
       - "9083:9083"
     depends_on:
@@ -173,8 +166,7 @@ services:
       - datanode
     networks:
       - shared-network
-      - hdfs-net
-      
+
   hive-metastore-postgresql:
     image: bde2020/hive-metastore-postgresql:3.1.0
     container_name: hive-metastore-postgresql
@@ -184,23 +176,39 @@ services:
       - ../PostgreSQL/:/var/lib/postgresql/data
     networks:
       - shared-network
-      - hdfs-net
 
   minio:
     image: minio/minio:latest
     container_name: minio
-    environment:
-      - MINIO_ROOT_USER=test      
-      - MINIO_ROOT_PASSWORD=12345678
+    env_file:
+      - .env
     command: server /data --console-address ":9001"
     ports:
-      - "9000:9000"   # S3 API
-      - "9001:9001"   # Console
+      - "9000:9000"
+      - "9001:9001"
     volumes:
-      - minio_data:/data
-      - minio_config:/root/.minio
+      - ../minio/data:/export
+      - ../minio/config:/root/.minio
     networks:
       - shared-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  createbuckets:
+    image: minio/mc
+    container_name: my-minio-client
+    depends_on:
+      - minio
+    env_file:
+      - .env
+    networks:
+      - shared-network
+    volumes:
+      - ../minio/entrypoint.sh:/entrypoint.sh
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]
 
   spark-master:
     image: gamberooni/spark-hive-metastore:spark-master-3.1.1
@@ -217,11 +225,12 @@ services:
       - SPARK_SSL_ENABLED=no
       - SPARK_USER=spark
       - INIT_DAEMON_STEP=setup_spark
+      - SPARK_MASTER_HOST=spark-master
     volumes:
       - ../:/opt/spark
       - ../HDFS/hadoop_config/core-site.xml:/etc/hadoop/conf/core-site.xml
+      - ../Spark/jars:/spark-jars
     networks:
-      - data_network
       - shared-network
 
   spark-worker:
@@ -235,8 +244,27 @@ services:
       - "8081:8081"
     env_file:
       - .env
+    volumes:
+      - ../:/opt/spark
+      - ../HDFS/hadoop_config/core-site.xml:/etc/hadoop/conf/core-site.xml
+      - ../Spark/jars:/spark-jars
     networks:
-      - data_network
+      - shared-network
+
+  notebook:
+    image: jupyter/pyspark-notebook:spark-3.1.1
+    container_name: notebook
+    ports:
+      - "8888:8888"
+      - "4040:4040"
+    environment:
+      - PYSPARK_SUBMIT_ARGS=--master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.1.1,com.amazonaws:aws-java-sdk-bundle:1.11.819,org.apache.hadoop:hadoop-aws:3.2.0 pyspark-shell
+      - SPARK_HOME=/usr/local/spark
+      - SPARK_DIST_CLASSPATH=$(hadoop classpath)
+    volumes:
+      - ./work:/home/jovyan/work
+      - ../Spark/jars:/home/jovyan/work/spark-jars
+    networks:
       - shared-network
 
 volumes:
@@ -245,11 +273,5 @@ volumes:
   metastore_db_data:
 
 networks:
-  kafka-net:
-    driver: bridge
-  hdfs-net:
-    driver: bridge
-  data_network:
-    driver: bridge
   shared-network:
     driver: bridge
