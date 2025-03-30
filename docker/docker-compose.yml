@@ -1,104 +1,34 @@
 version: "3"
 
 services:
-  kafk-1:
-    image: apache/kafka:3.9.0
-    container_name: kafk-1
-    hostname: kafk-1
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    container_name: zookeeper
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    ports:
+      - "2181:2181"
+    networks:
+      - shared-network
+
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: kafka
+    depends_on:
+      - zookeeper
     networks:
       - shared-network
     environment:
       - KAFKA_BROKER_ID=1
-      - KAFKA_NODE_ID=1
-      - KAFKA_PROCESS_ROLES=broker,controller
-      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafk-1:9093,2@kafk-2:9093,3@kafk-3:9093
-      - KAFKA_LISTENERS=INTERNAL://:9092,CONTROLLER://:9093,PLAINTEXT://:9094
-      - KAFKA_ADVERTISED_LISTENERS=INTERNAL://kafk-1:9092,CONTROLLER://kafk-1:9093,PLAINTEXT://kafk-1:9094
-      - KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL
-      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
-      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
-      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
-      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
-      - KAFKA_LOG_DIRS=/tmp/kraft-combined_logs
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
     ports:
-      - "29092:9094"
-
-  kafk-2:
-    image: apache/kafka:3.9.0
-    container_name: kafk-2
-    hostname: kafk-2
-    networks:
-      - shared-network
-    environment:
-      - KAFKA_BROKER_ID=2
-      - KAFKA_NODE_ID=2
-      - KAFKA_PROCESS_ROLES=broker,controller
-      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafk-1:9093,2@kafk-2:9093,3@kafk-3:9093
-      - KAFKA_LISTENERS=INTERNAL://:9092,CONTROLLER://:9093,PLAINTEXT://:9094
-      - KAFKA_ADVERTISED_LISTENERS=INTERNAL://kafk-2:9092,CONTROLLER://kafk-2:9093,PLAINTEXT://kafk-2:9094
-      - KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL
-      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
-      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
-      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
-      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
-      - KAFKA_LOG_DIRS=/tmp/kraft-combined_logs
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-    ports:
-      - "39092:9094"
-
-  kafk-3:
-    image: apache/kafka:3.9.0
-    container_name: kafk-3
-    hostname: kafk-3
-    networks:
-      - shared-network
-    environment:
-      - KAFKA_BROKER_ID=3
-      - KAFKA_NODE_ID=3
-      - KAFKA_PROCESS_ROLES=broker,controller
-      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafk-1:9093,2@kafk-2:9093,3@kafk-3:9093
-      - KAFKA_LISTENERS=INTERNAL://:9092,CONTROLLER://:9093,PLAINTEXT://:9094
-      - KAFKA_ADVERTISED_LISTENERS=INTERNAL://kafk-3:9092,CONTROLLER://kafk-3:9093,PLAINTEXT://kafk-3:9094
-      - KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL
-      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
-      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
-      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
-      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
-      - KAFKA_LOG_DIRS=/tmp/kraft-combined_logs
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-    ports:
-      - "49092:9094"
-
-  connect:
-    image: confluentinc/cp-kafka-connect:7.0.1
-    container_name: connect
-    depends_on:
-      - kafk-1
-      - kafk-2
-      - kafk-3
-    networks:
-      - shared-network
-    environment:
-      - CONNECT_BOOTSTRAP_SERVERS=kafk-1:9094,kafk-2:9094,kafk-3:9094
-      - CONNECT_REST_ADVERTISED_HOST_NAME=connect
-      - CONNECT_REST_LISTENERS=http://0.0.0.0:8083
-      - CONNECT_GROUP_ID=connect-group
-      - CONNECT_CONFIG_STORAGE_TOPIC=connect-config
-      - CONNECT_OFFSET_STORAGE_TOPIC=connect-offsets
-      - CONNECT_STATUS_STORAGE_TOPIC=connect-status
-      - CONNECT_KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter
-      - CONNECT_VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter
-      - CONNECT_INTERNAL_KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter
-      - CONNECT_INTERNAL_VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter
-      - CONNECT_LOG4J_ROOT_LOGLEVEL=INFO
-      - CONNECT_PLUGIN_PATH=/usr/share/java,/usr/share/confluent-hub-components
-    ports:
-      - "8083:8083"
-    command: [ "bash", "-c", "confluent-hub install --no-prompt confluentinc/kafka-connect-mqtt:latest && confluent-hub install --no-prompt confluentinc/kafka-connect-hdfs:latest && /etc/confluent/docker/run" ]
+      - "9092:9092"
+      - "29092:29092"
 
   namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
@@ -109,7 +39,7 @@ services:
     environment:
       - CLUSTER_NAME=test
     env_file:
-      - ./hadoop-hive.env
+      - ./hadoop.env
     ports:
       - "9870:9870"
       - "8020:8020"
@@ -145,8 +75,6 @@ services:
       - hive-metastore-postgresql
       - namenode
       - datanode
-    volumes:
-      - ../HDFS/hadoop_config/core-site.xml:/etc/hadoop/conf/core-site.xml
     networks:
       - shared-network
 
@@ -197,21 +125,10 @@ services:
       timeout: 20s
       retries: 3
 
-  createbuckets:
-    image: minio/mc
-    container_name: my-minio-client
-    depends_on:
-      - minio
-    env_file:
-      - .env
-    networks:
-      - shared-network
-    volumes:
-      - ../minio/entrypoint.sh:/entrypoint.sh
-    entrypoint: ["/bin/bash", "/entrypoint.sh"]
-
   spark-master:
-    image: gamberooni/spark-hive-metastore:spark-master-3.1.1
+    build:
+      context: ../Spark/master
+      dockerfile: Dockerfile
     container_name: spark-master
     hostname: spark-master
     ports:
@@ -227,43 +144,42 @@ services:
       - INIT_DAEMON_STEP=setup_spark
       - SPARK_MASTER_HOST=spark-master
     volumes:
-      - ../:/opt/spark
-      - ../HDFS/hadoop_config/core-site.xml:/etc/hadoop/conf/core-site.xml
-      - ../Spark/jars:/spark-jars
+      - ../PipelineTest.py:/opt/bitnami/spark/PipelineTest.py
+    # Override CMD từ Dockerfile để chạy tiến trình Spark master thay vì JupyterLab
+    command: ["spark-class", "org.apache.spark.deploy.master.Master"]
     networks:
       - shared-network
 
   spark-worker:
-    image: gamberooni/spark-hive-metastore:spark-worker-3.1.1
+    build:
+      context: ../Spark/worker
+      dockerfile: Dockerfile
     container_name: spark-worker
     depends_on:
       - spark-master
     environment:
-      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_MODE=worker
+      - "SPARK_MASTER=spark://spark-master:7077"
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=1
     ports:
       - "8081:8081"
-    env_file:
-      - .env
     volumes:
-      - ../:/opt/spark
-      - ../HDFS/hadoop_config/core-site.xml:/etc/hadoop/conf/core-site.xml
-      - ../Spark/jars:/spark-jars
+      - ../PipelineTest.py:/opt/bitnami/spark/PipelineTest.py
+    # Override CMD để chạy tiến trình Spark worker
+    command: ["spark-class", "org.apache.spark.deploy.worker.Worker", "spark://spark-master:7077"]
     networks:
       - shared-network
 
-  notebook:
-    image: jupyter/pyspark-notebook:spark-3.1.1
-    container_name: notebook
+  jupyter:
+    build:
+      context: ../Spark/master
+      dockerfile: Dockerfile
+    container_name: jupyter
     ports:
       - "8888:8888"
-      - "4040:4040"
-    environment:
-      - PYSPARK_SUBMIT_ARGS=--master spark://spark-master:7077 --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.1.1,com.amazonaws:aws-java-sdk-bundle:1.11.819,org.apache.hadoop:hadoop-aws:3.2.0 pyspark-shell
-      - SPARK_HOME=/usr/local/spark
-      - SPARK_DIST_CLASSPATH=$(hadoop classpath)
-    volumes:
-      - ./work:/home/jovyan/work
-      - ../Spark/jars:/home/jovyan/work/spark-jars
+    # Service riêng để chạy JupyterLab
+    command: ["jupyter", "lab", "--ip=0.0.0.0", "--no-browser", "--NotebookApp.token=''", "--allow-root"]
     networks:
       - shared-network
 
