@@ -1,6 +1,7 @@
 import requests
 import json
 from kafka import KafkaProducer
+from confluent_kafka import Producer
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json
@@ -16,16 +17,22 @@ def produce_api_data_to_kafka(kafka_bootstrap_servers):
     if response.status_code != 200:
         print("Failed to fetch API data, status code:", response.status_code)
         return
-    stations = response.json()
+    stations = response.json()  # danh sách station
+
+    # Khởi tạo Kafka producer
+    # producer = KafkaProducer(
+    #     bootstrap_servers=kafka_bootstrap_servers,
+    #     value_serializer=lambda v: json.dumps(v).encode('utf-8')
+    # )
     
-    # Khởi tạo Kafka producer sử dụng kafka-python
-    producer = KafkaProducer(
-        bootstrap_servers=kafka_bootstrap_servers,
-        value_serializer=lambda v: json.dumps(v).encode('utf-8')
-    )
-    
+    conf = {
+    'bootstrap.servers': 'kafka:9092'
+    }   
+    producer = Producer(conf)
+
     # Với mỗi station, gửi từng record cho từng timeseries vào Kafka topic riêng
     for station in stations:
+        # Lấy thông tin station chung
         station_data = {
             "uuid": station.get("uuid"),
             "number": station.get("number"),
@@ -43,8 +50,9 @@ def produce_api_data_to_kafka(kafka_bootstrap_servers):
                 "station": station_data,
                 "timeseries": ts
             }
+            # Đặt tên topic theo kiểu: timeseries_<shortname của timeseries>
             topic = "timeseries_" + ts.get("shortname", "unknown")
-            producer.send(topic, record)
+            producer.produce(topic, json.dumps(record).encode('utf-8'))
     producer.flush()
     print("API data produced to Kafka topics.")
 
@@ -62,8 +70,10 @@ spark = SparkSession.builder \
     .master("spark://spark-master:7077") \
     .config("spark.sql.warehouse.dir", "hdfs://namenode:8020/user/hive/warehouse") \
     .getOrCreate()
+# spark.sparkContext.setLogLevel("WARN")
 
 sc = spark.sparkContext
+# Set the MinIO access key, secret key, endpoint, and other configurations
 sc._jsc.hadoopConfiguration().set("fs.s3a.access.key", "test")
 sc._jsc.hadoopConfiguration().set("fs.s3a.secret.key", "12345678")
 sc._jsc.hadoopConfiguration().set("fs.s3a.endpoint", "http://minio:9000")
@@ -93,6 +103,7 @@ timeseries_schema = StructType([
     StructField("longname", StringType()),
     StructField("unit", StringType()),
     StructField("equidistance", IntegerType()),
+    # Các trường tùy chọn
     StructField("gaugeZero", StructType([
         StructField("unit", StringType()),
         StructField("value", DoubleType()),
@@ -121,14 +132,13 @@ processed_df = kafka_df.withColumn("json_data", from_json(col("value"), full_sch
                         .select("topic", "timestamp", "json_data.*")
 
 # ----------------------------
-# Ghi dữ liệu ra file Parquet (HDFS & MinIO) và bảng Iceberg (HDFS) cho 2 nguồn lưu trữ:
+# Ghi dữ liệu ra file Parquet:
 hdfsParquetQuery = processed_df.writeStream \
     .format("parquet") \
     .option("path", "hdfs://namenode:8020/youruser/sensor_data_parquet") \
     .option("checkpointLocation", "/tmp/checkpoint/hdfs_sensor_data") \
     .trigger(processingTime="10 seconds") \
     .start()
-
 minioParquetQuery = processed_df.writeStream \
     .format("parquet") \
     .outputMode("append") \
@@ -136,14 +146,26 @@ minioParquetQuery = processed_df.writeStream \
     .option("checkpointLocation", "s3a://sensor-data-parquet/checkpoints/") \
     .start()
 
-hdfsIcebergQuery = processed_df.writeStream \
-    .format("parquet") \
-    .option("catalog", "hive") \
-    .option("path", "hdfs://namenode:8020/youruser/hdfs_sensor_data_iceberg") \
-    .option("checkpointLocation", "/tmp/checkpoint/hive_hdfs_sensor_data") \
-    .trigger(processingTime="10 seconds") \
-    .start()
 
+# ----------------------------
+# # Ghi dữ liệu ra bảng Iceberg (sử dụng Hive Catalog) cho 2 nguồn lưu trữ:
+# hdfsIcebergQuery = processed_df.writeStream \
+#     .format("parquet") \
+#     .option("catalog", "hive") \
+#     .option("path", "hdfs://namenode:8020/youruser/hdfs_sensor_data_iceberg") \
+#     .option("checkpointLocation", "/tmp/checkpoint/hive_hdfs_sensor_data") \
+#     .trigger(processingTime="10 seconds") \
+#     .start()
+
+# minioIcebergQuery = processed_df.writeStream \
+#     .format("iceberg") \
+#     .option("catalog", "hive") \
+#     .option("path", "minio_sensor_data_iceberg") \
+#     .option("checkpointLocation", "/tmp/checkpoint/hive_minio_sensor_data") \
+#     .trigger(processingTime="10 seconds") \
+#     .start()
+
+# ----------------------------
 # Ghi ra console để debug
 consoleQuery = processed_df.writeStream \
     .format("console") \
@@ -153,5 +175,6 @@ consoleQuery = processed_df.writeStream \
 
 hdfsParquetQuery.awaitTermination()
 minioParquetQuery.awaitTermination()
-hdfsIcebergQuery.awaitTermination()
+# hdfsIcebergQuery.awaitTermination()
+# minioIcebergQuery.awaitTermination()
 consoleQuery.awaitTermination()
