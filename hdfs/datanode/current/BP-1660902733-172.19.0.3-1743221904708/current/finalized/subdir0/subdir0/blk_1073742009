@@ -1,0 +1,6 @@
+v1
+{"path":"s3a://sensor-data-parquet-minio/part-00000-6648e113-e614-4567-83cf-04a4ec21f6d6-c000.snappy.parquet","timestamp":1743433002000,"batchId":1}
+{"path":"s3a://sensor-data-parquet-minio/part-00001-66011be0-ddc1-4a4a-9c2b-c2619c8996d1-c000.snappy.parquet","timestamp":1743433002000,"batchId":1}
+{"path":"s3a://sensor-data-parquet-minio/part-00002-7c6a9665-230d-4bc4-973f-19b09d7faf63-c000.snappy.parquet","timestamp":1743433002000,"batchId":1}
+{"path":"s3a://sensor-data-parquet-minio/part-00003-1643ef5e-3845-4b5d-8769-6f51ce604615-c000.snappy.parquet","timestamp":1743433004000,"batchId":1}
+{"path":"s3a://sensor-data-parquet-minio/part-00004-a0e58530-abe9-48dc-a95c-1427d24d4d64-c000.snappy.parquet","timestamp":1743433004000,"batchId":1}

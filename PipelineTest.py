@@ -3,31 +3,24 @@ import json
 from confluent_kafka import Producer
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, from_json
+from pyspark.sql.functions import col, from_json, hash, when
 from pyspark.sql.types import (
     StructType, StructField, StringType, IntegerType, DoubleType
 )
 
-# ----------------------------
-# Hàm đẩy dữ liệu từ API vào Kafka
 def produce_api_data_to_kafka(kafka_bootstrap_servers):
-    # Lấy dữ liệu từ API
     api_url = ("https://www.pegelonline.wsv.de/webservices/rest-api/v2/stations.json?"
                "includeTimeseries=true&hasTimeseries=WV&includeForecastTimeseries=true")
     response = requests.get(api_url)
     if response.status_code != 200:
         print("Failed to fetch API data, status code:", response.status_code)
         return
-    stations = response.json()  # danh sách station
+    stations = response.json() 
 
-    # Sử dụng Confluent Kafka Producer
-    conf = {
-        'bootstrap.servers': 'kafka:9092'
-    }
+    conf = {'bootstrap.servers': 'kafka:9092'}
     producer = Producer(conf)
 
     for station in stations:
-        # Lấy thông tin station chung
         station_data = {
             "uuid": station.get("uuid"),
             "number": station.get("number"),
@@ -45,19 +38,14 @@ def produce_api_data_to_kafka(kafka_bootstrap_servers):
                 "station": station_data,
                 "timeseries": ts
             }
-            # Đặt tên topic theo kiểu: timeseries_<shortname của timeseries>
             topic = "timeseries_" + ts.get("shortname", "unknown")
             producer.produce(topic, json.dumps(record).encode('utf-8'))
     producer.flush()
     print("API data produced to Kafka topics.")
 
-# ----------------------------
-# Cấu hình Kafka và đẩy dữ liệu vào Kafka
 kafka_bootstrap_servers = ["kafka:9092"]
 produce_api_data_to_kafka(kafka_bootstrap_servers)
 
-# ----------------------------
-# Khởi tạo SparkSession với cấu hình kết nối đến Hive Metastore, Iceberg, HDFS và MinIO
 spark = SparkSession.builder \
     .appName("PipelineTest") \
     .master("spark://spark-master:7077") \
@@ -70,14 +58,12 @@ spark = SparkSession.builder \
     .config("spark.sql.catalog.iceberg.uri", "thrift://hive-metastore:9083") \
     .config("spark.sql.catalog.iceberg.warehouse", "hdfs://namenode:9000/user/hive/warehouse") \
     .config("spark.sql.adaptive.enabled", "false") \
+    .config("spark.sql.extensions", "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions") \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("WARN")
-
 sc = spark.sparkContext
-# Đảm bảo cấu hình Hadoop sử dụng đúng defaultFS (hdfs://namenode:9000)
 sc._jsc.hadoopConfiguration().set("fs.defaultFS", "hdfs://namenode:9000")
-# Cấu hình truy cập MinIO (sử dụng s3a)
 sc._jsc.hadoopConfiguration().set("fs.s3a.access.key", "test")
 sc._jsc.hadoopConfiguration().set("fs.s3a.secret.key", "12345678")
 sc._jsc.hadoopConfiguration().set("fs.s3a.endpoint", "http://minio:9000")
@@ -85,8 +71,6 @@ sc._jsc.hadoopConfiguration().set("fs.s3a.path.style.access", "true")
 sc._jsc.hadoopConfiguration().set("fs.s3a.connection.ssl.enabled", "false")
 sc._jsc.hadoopConfiguration().set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
 
-# ----------------------------
-# Định nghĩa schema cho dữ liệu JSON
 station_schema = StructType([
     StructField("uuid", StringType()),
     StructField("number", StringType()),
@@ -123,38 +107,37 @@ full_schema = StructType([
 
 print("Schema defined")
 
-# ----------------------------
-# Đọc dữ liệu stream từ Kafka
 kafka_df = spark.readStream \
     .format("kafka") \
     .option("kafka.bootstrap.servers", ",".join(kafka_bootstrap_servers)) \
     .option("subscribePattern", "timeseries_.*") \
     .option("startingOffsets", "earliest") \
+    .option("failOnDataLoss", "false") \
     .load()
 
-# Ép kiểu và parse JSON theo schema
 kafka_df = kafka_df.selectExpr("CAST(value AS STRING) as value", "topic", "timestamp")
 processed_df = kafka_df.withColumn("json_data", from_json(col("value"), full_schema)) \
                         .select("topic", "timestamp", "json_data.*")
 
-# ----------------------------
-# Ghi dữ liệu ra Parquet trên HDFS
-hdfsParquetQuery = processed_df.writeStream \
+
+processed_df = processed_df.withColumn("storage_type", 
+                        when((hash(col("station.uuid")) % 2) == 0, "hdfs").otherwise("minio"))
+
+hdfs_df = processed_df.filter(col("storage_type") == "hdfs")
+minio_df = processed_df.filter(col("storage_type") == "minio")
+
+hdfsQuery = hdfs_df.writeStream \
     .format("parquet") \
-    .option("path", "hdfs://namenode:9000/youruser/sensor-data-parquet") \
+    .option("path", "hdfs://namenode:9000/youruser/sensor-data-parquet-hdfs") \
     .option("checkpointLocation", "/tmp/checkpoint/hdfs-sensor-data") \
     .start()
 
-# Ghi dữ liệu ra Parquet trên MinIO (sử dụng giao thức s3a)
-minioParquetQuery = processed_df.writeStream \
+minioQuery = minio_df.writeStream \
     .format("parquet") \
-    .outputMode("append") \
-    .option("path", "s3a://sensor-data-parquet/") \
-    .option("checkpointLocation", "s3a://sensor-data-parquet/checkpoints/") \
+    .option("path", "s3a://sensor-data-parquet-minio/") \
+    .option("checkpointLocation", "s3a://sensor-data-parquet-minio/checkpoints/") \
     .start()
 
-# ----------------------------
-# Tạo bảng Iceberg sử dụng Hive Metastore (nếu chưa tồn tại)
 spark.sql("""
 CREATE TABLE IF NOT EXISTS iceberg.default.sensor_data_iceberg (
     topic STRING,
@@ -183,24 +166,36 @@ CREATE TABLE IF NOT EXISTS iceberg.default.sensor_data_iceberg (
 USING iceberg
 """)
 
-icebergQuery = processed_df.writeStream \
+# Combine metadata.
+hdfs_data = spark.readStream \
+    .format("parquet") \
+    .schema(full_schema) \
+    .load("hdfs://namenode:9000/youruser/sensor-data-parquet-hdfs")
+
+minio_data = spark.readStream \
+    .format("parquet") \
+    .schema(full_schema) \
+    .load("s3a://sensor-data-parquet-minio/")
+
+unified_data = hdfs_data.union(minio_data)
+
+icebergQuery = unified_data.writeStream \
     .format("iceberg") \
     .option("catalog", "iceberg") \
     .option("checkpointLocation", "/tmp/checkpoint/iceberg-sensor-data") \
-    .start("iceberg.default.sensor_data_iceberg")  # Sử dụng identifier đầy đủ
+    .outputMode("append") \
+    .start("iceberg.default.sensor_data_iceberg")
 
-# ----------------------------
-# Ghi dữ liệu ra console để debug
 consoleQuery = processed_df.writeStream \
     .format("console") \
     .option("truncate", "false") \
     .start()
 
-# ----------------------------
-# Truy xuất metadata từ Hive Metastore thông qua Spark Catalog
 print("Databases in Hive Metastore:")
-spark.catalog.listDatabases().show(truncate=False)
+spark.createDataFrame(spark.catalog.listDatabases()).show(truncate=False)
 print("Tables in default database:")
-spark.catalog.listTables("default").show(truncate=False)
+tables = spark.catalog.listTables("default")
+tables_data = [(t.name, t.tableType, t.isTemporary) for t in tables]
+spark.createDataFrame(tables_data, schema=["name", "tableType", "isTemporary"]).show(truncate=False)
 
 spark.streams.awaitAnyTermination()

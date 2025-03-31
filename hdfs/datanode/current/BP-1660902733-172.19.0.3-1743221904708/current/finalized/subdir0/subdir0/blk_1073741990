@@ -1,0 +1,11 @@
+v1
+{"path":"s3a://sensor-data-parquet-minio/part-00000-3b31ee3c-418d-4961-aaf0-a5cd45b17df1-c000.snappy.parquet","timestamp":1743430149000,"batchId":0}
+{"path":"s3a://sensor-data-parquet-minio/part-00001-8bfd713e-6882-4a5b-8d1e-6bbe14a9bfce-c000.snappy.parquet","timestamp":1743430149000,"batchId":0}
+{"path":"s3a://sensor-data-parquet-minio/part-00002-cba73b6b-ad97-4658-ab16-f46d06e4d489-c000.snappy.parquet","timestamp":1743430149000,"batchId":0}
+{"path":"s3a://sensor-data-parquet-minio/part-00003-0a4b8c85-b737-41aa-8cc9-ba58683fe788-c000.snappy.parquet","timestamp":1743430149000,"batchId":0}
+{"path":"s3a://sensor-data-parquet-minio/part-00004-bf339e39-721d-4528-ad26-c488020c1678-c000.snappy.parquet","timestamp":1743430149000,"batchId":0}
+{"path":"s3a://sensor-data-parquet-minio/part-00000-a208b7b1-4eca-42c2-8534-6b50c7cc368e-c000.snappy.parquet","timestamp":1743430152000,"batchId":0}
+{"path":"s3a://sensor-data-parquet-minio/part-00001-a83f8860-1856-4173-823a-d99d82d64d22-c000.snappy.parquet","timestamp":1743430152000,"batchId":0}
+{"path":"s3a://sensor-data-parquet-minio/part-00002-11ed711b-9beb-4ff4-8491-0ca59eb476c6-c000.snappy.parquet","timestamp":1743430152000,"batchId":0}
+{"path":"s3a://sensor-data-parquet-minio/part-00003-c4c48034-ad69-4d1d-8e55-79265a08f37b-c000.snappy.parquet","timestamp":1743430152000,"batchId":0}
+{"path":"s3a://sensor-data-parquet-minio/part-00004-0c280f1c-bb2e-4888-976e-35f31361abcb-c000.snappy.parquet","timestamp":1743430152000,"batchId":0}
