@@ -75,7 +75,7 @@
   # Cập nhật spark-defaults.conf để bật Iceberg (Iceberg sử dụng Hive Metastore, warehouse trên HDFS)
   RUN echo 'spark.sql.catalog.iceberg org.apache.iceberg.spark.SparkCatalog' >> "$SPARK_HOME/conf/spark-defaults.conf" && \
       echo 'spark.sql.catalog.iceberg.type=hive' >> "$SPARK_HOME/conf/spark-defaults.conf" && \
-      echo 'spark.sql.catalog.iceberg.warehouse=hdfs://namenode:8020/user/hive/warehouse' >> "$SPARK_HOME/conf/spark-defaults.conf"
+      echo 'spark.sql.catalog.iceberg.warehouse=hdfs://namenode:9000/user/hive/warehouse' >> "$SPARK_HOME/conf/spark-defaults.conf"
   
   # Thiết lập working directory (sử dụng HOME của user mặc định)
   WORKDIR "${HOME}"

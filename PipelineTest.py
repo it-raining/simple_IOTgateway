@@ -61,22 +61,22 @@ produce_api_data_to_kafka(kafka_bootstrap_servers)
 spark = SparkSession.builder \
     .appName("PipelineTest") \
     .master("spark://spark-master:7077") \
-    .config("spark.sql.warehouse.dir", "hdfs://namenode:8020/user/hive/warehouse") \
-    .config("spark.hadoop.fs.defaultFS", "hdfs://namenode:8020") \
+    .config("spark.sql.warehouse.dir", "hdfs://namenode:9000/user/hive/warehouse") \
+    .config("spark.hadoop.fs.defaultFS", "hdfs://namenode:9000") \
     .config("spark.sql.catalogImplementation", "hive") \
     .config("spark.hadoop.hive.metastore.uris", "thrift://hive-metastore:9083") \
     .config("spark.sql.catalog.iceberg", "org.apache.iceberg.spark.SparkCatalog") \
     .config("spark.sql.catalog.iceberg.type", "hive") \
     .config("spark.sql.catalog.iceberg.uri", "thrift://hive-metastore:9083") \
-    .config("spark.sql.catalog.iceberg.warehouse", "hdfs://namenode:8020/user/hive/warehouse") \
+    .config("spark.sql.catalog.iceberg.warehouse", "hdfs://namenode:9000/user/hive/warehouse") \
     .config("spark.sql.adaptive.enabled", "false") \
     .getOrCreate()
 
 spark.sparkContext.setLogLevel("WARN")
 
 sc = spark.sparkContext
-# Đảm bảo cấu hình Hadoop sử dụng đúng defaultFS (hdfs://namenode:8020)
-sc._jsc.hadoopConfiguration().set("fs.defaultFS", "hdfs://namenode:8020")
+# Đảm bảo cấu hình Hadoop sử dụng đúng defaultFS (hdfs://namenode:9000)
+sc._jsc.hadoopConfiguration().set("fs.defaultFS", "hdfs://namenode:9000")
 # Cấu hình truy cập MinIO (sử dụng s3a)
 sc._jsc.hadoopConfiguration().set("fs.s3a.access.key", "test")
 sc._jsc.hadoopConfiguration().set("fs.s3a.secret.key", "12345678")
@@ -141,7 +141,7 @@ processed_df = kafka_df.withColumn("json_data", from_json(col("value"), full_sch
 # Ghi dữ liệu ra Parquet trên HDFS
 hdfsParquetQuery = processed_df.writeStream \
     .format("parquet") \
-    .option("path", "hdfs://namenode:8020/youruser/sensor-data-parquet") \
+    .option("path", "hdfs://namenode:9000/youruser/sensor-data-parquet") \
     .option("checkpointLocation", "/tmp/checkpoint/hdfs-sensor-data") \
     .start()
 
