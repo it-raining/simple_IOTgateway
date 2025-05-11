@@ -2,6 +2,8 @@ version: '3'
 networks:
   kafka-net:
     driver: bridge
+  shared-network:
+    external: true
 
 services:
   kafk-1:
@@ -11,6 +13,7 @@ services:
     hostname: kafk-1
     networks:
       - kafka-net
+      - shared-network
     environment:
       - KAFKA_BROKER_ID=1
       - KAFKA_NODE_ID=1
@@ -36,6 +39,7 @@ services:
     hostname: kafk-2
     networks:
       - kafka-net
+      - shared-network
     environment:
       - KAFKA_BROKER_ID=2
       - KAFKA_NODE_ID=2
@@ -61,6 +65,7 @@ services:
     hostname: kafk-3
     networks:
       - kafka-net
+      - shared-network
     environment:
       - KAFKA_BROKER_ID=3
       - KAFKA_NODE_ID=3
@@ -88,6 +93,7 @@ services:
       - kafk-3
     networks:
       - kafka-net
+      - shared-network
     environment:
       - CONNECT_BOOTSTRAP_SERVERS=kafk-1:9094,kafk-2:9094,kafk-3:9094
       - CONNECT_REST_ADVERTISED_HOST_NAME=connect

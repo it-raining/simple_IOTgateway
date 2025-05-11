@@ -1,0 +1,458 @@
+/* Basic Reset & Variables */
+:root {
+    --primary-color: #7a5af5; /* Purple */
+    --secondary-color: #f4f3fe; /* Light purple bg */
+    --text-color: #333;
+    --text-muted: #666;
+    --bg-color: #ffffff;
+    --border-color: #e0e0e0;
+    --sidebar-bg: #ffffff;
+    --sidebar-width: 260px;
+    --header-height: 80px;
+    --active-bg: #f4f3fe;
+    --alert-bg: #fef4e6; /* Light orange */
+    --alert-border: #ffc107; /* Orange */
+    --alert-text: #b37c00;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+        Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    background-color: #f8f9fa; /* Light gray background for outside area */
+    color: var(--text-color);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+ul {
+    list-style: none;
+}
+
+button {
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-left: 8px; /* Keep this for header-filter buttons */
+}
+/* Ensure close buttons in cards and alerts don't get default button margin */
+.card-header .close-card, .header-alert .close-alert {
+    margin-left: auto; /* This should override the general button margin */
+}
+
+
+button.active, button:hover {
+    background-color: var(--secondary-color);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+button:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(122, 90, 245, 0.3);
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+/* Dashboard Layout */
+.dashboard-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+    width: var(--sidebar-width);
+    background-color: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0; /* Prevent sidebar from shrinking */
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.sidebar-header .logo {
+    width: 32px;
+    height: 32px;
+    background-color: var(--primary-color);
+    border-radius: 6px;
+    margin-right: 10px;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px; /* Adjusted for "UI" text */
+    font-weight: bold;
+}
+
+.sidebar-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.sidebar-search {
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.sidebar-search input {
+    padding-left: 35px; /* Make space for icon */
+}
+.sidebar-search::before {
+    content: '🔍'; /* Changed to search icon */
+    position: absolute;
+    left: 12px; /* Adjusted for better centering */
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 14px; /* Icon size */
+}
+
+
+.sidebar-nav ul {
+    margin-bottom: 15px;
+}
+
+.sidebar-nav li {
+    margin-bottom: 5px;
+}
+
+.sidebar-nav a {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-weight: 500;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-nav .icon {
+    margin-right: 10px;
+    width: 20px; /* Fixed width for alignment, adjust if icons vary greatly */
+    text-align: center;
+    font-size: 16px; /* Adjust icon size if needed */
+}
+
+.sidebar-nav li.active a {
+    background-color: var(--active-bg);
+    color: var(--primary-color);
+}
+
+.sidebar-nav a:hover {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+}
+
+.sidebar-separator {
+    height: 1px;
+    background-color: var(--border-color);
+    margin: 15px 0;
+}
+
+
+.sidebar-footer {
+    margin-top: auto; /* Pushes footer to the bottom */
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+}
+
+.user-profile .avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 10px;
+    background-color: var(--primary-color); /* Placeholder color if image fails */
+    object-fit: cover;
+    /* Style for if image fails and alt text is shown */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white; /* For potential initials if img was a div */
+    font-weight: bold;
+    overflow: hidden; /* Hide alt text if it's too long for the circle */
+}
+/* In case image source is broken, this helps maintain the look */
+.user-profile .avatar[src="placeholder-avatar.png"] {
+    background-color: var(--primary-color); /* Ensure background if image is missing */
+    /* Add content via pseudo-element is not standard for <img>.
+       If you need to display initials, replace <img> with <div> and style it.
+       For now, a good background color is the best fallback for <img>.
+    */
+}
+
+
+.user-profile .user-info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.user-profile .user-name {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.user-profile .user-email {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.user-profile .options-icon,
+.card-header .options-icon { /* Grouped similar option icons */
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 5px;
+    margin-left: auto; /* Pushes icon to the right */
+    font-size: 18px; /* Adjust size for ⋮ */
+    line-height: 1; /* Ensure proper vertical alignment */
+}
+
+.card-header .close-card,
+.header-alert .close-alert {
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 5px;
+    border: none;
+    background: none;
+    font-size: 20px; /* Adjust size for × */
+    line-height: 1;
+}
+.card-header .close-card {
+     margin-left: auto; /* Pushes icon to the right */
+}
+.header-alert .close-alert {
+    margin-left: 10px; /* Space from content */
+    align-self: flex-start;
+}
+
+
+/* Main Content */
+.main-content {
+    flex-grow: 1;
+    background-color: var(--bg-color);
+    padding: 25px 30px;
+    overflow-y: auto;
+}
+
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.content-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.content-header p {
+    color: var(--text-muted);
+}
+
+.header-alert {
+    background-color: var(--alert-bg);
+    border: 1px solid var(--alert-border);
+    color: var(--alert-text);
+    padding: 10px 15px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center; /* Vertically center icon and text block */
+    font-size: 13px;
+    max-width: 400px;
+    flex-basis: 100%; /* Allow it to take full width on smaller screens if wrapped */
+    min-width: 280px; /* Prevent it from becoming too squished */
+}
+@media (min-width: 992px) { /* Adjust breakpoint as needed */
+    .header-alert {
+        flex-basis: auto; /* Revert to natural width on larger screens */
+    }
+}
+
+.header-alert strong {
+    display: block;
+    margin-bottom: 3px;
+    font-weight: 600;
+}
+.header-alert p {
+    color: var(--alert-text);
+    font-size: 12px;
+    line-height: 1.4;
+}
+.header-alert .alert-icon {
+    margin-right: 10px;
+    font-weight: bold;
+    font-size: 18px; /* Size for ⚠️ */
+    line-height: 1; /* Ensure proper vertical alignment */
+}
+.alert-content {
+    flex-grow: 1;
+}
+
+
+/* Content Body Grid */
+.content-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 25px;
+}
+
+.card {
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    display: flex; /* Added for better internal alignment if needed */
+    flex-direction: column; /* Ensure card content flows top to bottom */
+}
+
+.large-card {
+    grid-column: 1 / -1;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.card-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-right: 10px; /* Space between title and potential icon/link */
+}
+
+.card-header .real-time-link {
+    font-size: 13px;
+    color: var(--primary-color);
+    font-weight: 500;
+    white-space: nowrap; /* Prevent link from wrapping */
+}
+
+.chart-placeholder {
+    min-height: 200px;
+    background-color: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    flex-grow: 1; /* Allow placeholder to grow if card is taller */
+}
+#donut-chart {
+    min-height: 150px;
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    margin: 15px auto;
+    flex-grow: 0; /* Donut chart should keep its size */
+}
+
+.legend {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.legend div {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+.legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    margin-right: 8px;
+    display: inline-block;
+}
+
+.card-content {
+    flex-grow: 1; /* Allow content to take available space */
+}
+.card-content p {
+    margin-bottom: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+}
+.card-content p:last-child {
+    margin-bottom: 0; /* Remove bottom margin from last paragraph */
+}
+.card-content p strong {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+/* Placeholder image styling already handled in .user-profile .avatar */
+img.avatar {
+    /* background-color: #ddd; */ /* Already defined with --primary-color in .user-profile .avatar */
+}
+.chart-container {
+    position: relative; /* Quan trọng cho Chart.js responsiveness */
+    min-height: 250px; /* Chiều cao tối thiểu cho line chart */
+    margin-bottom: 15px;
+    flex-grow: 1;
+    /* Loại bỏ background và text cũ của placeholder */
+    /* background-color: #f0f0f0; */
+    /* display: flex; */
+    /* align-items: center; */
+    /* justify-content: center; */
+    /* color: #aaa; */
+}
+
+/* Container cho Donut chart có kích thước cụ thể hơn */
+#donutChartContainer {
+    position: relative;
+    max-width: 200px;  /* Kích thước tối đa */
+    min-height: 200px; /* Chiều cao tối thiểu */
+    height: 200px;     /* Chiều cao cố định */
+    margin: 15px auto; /* Căn giữa */
+    flex-grow: 0; /* Không cho phép co giãn */
+}
+
+/* Đảm bảo canvas chiếm toàn bộ container của nó */
+#lineChartCanvas, #donutChartCanvas {
+    width: 100% !important; /* Có thể cần !important nếu Chart.js đặt inline style */
+    height: 100% !important;
+}
+
+/* Điều chỉnh nhỏ cho legend của card donut nếu cần */
+.card .legend {
+    margin-top: 10px; /* Thêm chút không gian phía trên legend nếu biểu đồ gần quá */
+}
