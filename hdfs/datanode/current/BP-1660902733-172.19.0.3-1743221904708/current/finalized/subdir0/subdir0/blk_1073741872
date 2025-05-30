@@ -1,0 +1,6 @@
+v1
+{"path":"hdfs://namenode:9000/youruser/sensor_data_parquet/part-00000-693c9bb0-1298-47e7-b813-c798ec387e91-c000.snappy.parquet","size":11178,"isDir":false,"modificationTime":1743411945336,"blockReplication":3,"blockSize":134217728,"action":"add"}
+{"path":"hdfs://namenode:9000/youruser/sensor_data_parquet/part-00001-8cea0b5d-e40d-4885-9a2f-cd1a738d72b3-c000.snappy.parquet","size":8942,"isDir":false,"modificationTime":1743411945272,"blockReplication":3,"blockSize":134217728,"action":"add"}
+{"path":"hdfs://namenode:9000/youruser/sensor_data_parquet/part-00002-8409f728-d8f0-4c07-aa11-0cc4cf5d9d57-c000.snappy.parquet","size":7659,"isDir":false,"modificationTime":1743411945311,"blockReplication":3,"blockSize":134217728,"action":"add"}
+{"path":"hdfs://namenode:9000/youruser/sensor_data_parquet/part-00003-d16d4922-b84d-44e5-8e45-4d76c08be20f-c000.snappy.parquet","size":7538,"isDir":false,"modificationTime":1743411945287,"blockReplication":3,"blockSize":134217728,"action":"add"}
+{"path":"hdfs://namenode:9000/youruser/sensor_data_parquet/part-00004-5c29ad35-8624-4e79-b04f-350e7f19dc71-c000.snappy.parquet","size":11094,"isDir":false,"modificationTime":1743411945322,"blockReplication":3,"blockSize":134217728,"action":"add"}

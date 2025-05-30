@@ -1,112 +1,192 @@
-version: '3'
-networks:
-  kafka-net:
-    driver: bridge
-  shared-network:
-    external: true
+version: "3"
 
 services:
-  kafk-1:
-    # Your existing kafk-1 configuration (keep as is)
-    image: apache/kafka:3.9.0
-    container_name: kafk-1
-    hostname: kafk-1
+  # zookeeper:
+  #   image: bitnami/zookeeper:latest
+  #   container_name: zookeeper
+  #   environment:
+  #     - ALLOW_ANONYMOUS_LOGIN=yes
+  #   ports:
+  #     - "2181:2181"
+  #   networks:
+  #     - shared-network
+
+  kafka:
+    image: bitnami/kafka:latest
+    container_name: kafka
     networks:
-      - kafka-net
       - shared-network
     environment:
       - KAFKA_BROKER_ID=1
-      - KAFKA_NODE_ID=1
-      - KAFKA_PROCESS_ROLES=broker,controller
-      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafk-1:9093,2@kafk-2:9093,3@kafk-3:9093
-      - KAFKA_LISTENERS=INTERNAL://:9092,CONTROLLER://:9093,PLAINTEXT://:9094
-      - KAFKA_ADVERTISED_LISTENERS=INTERNAL://kafk-1:9092,CONTROLLER://kafk-1:9093,PLAINTEXT://kafk-1:9094
-      - KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL
-      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
-      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
-      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
-      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
-      - KAFKA_LOG_DIRS=/tmp/kraft-combined_logs
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:29092
+      - KAFKA_CFG_LISTENERS=INTERNAL://:9092,PLAINTEXT://:29092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=INTERNAL://kafka:9092,PLAINTEXT://kafka:29092
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=INTERNAL
+      - KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_CFG_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+      - KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_CFG_LOG_DIRS=/tmp/kraft-combined_logs
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
     ports:
-      - 29092:9094
+      - "9092:9092"
+      - "29092:29092"
 
-  kafk-2:
-    # Similar for kafk-2, adjust ports and IDs
-    image: apache/kafka:3.9.0
-    container_name: kafk-2
-    hostname: kafk-2
-    networks:
-      - kafka-net
-      - shared-network
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    restart: always
+    volumes:
+      - ../HDFS/namenode:/hadoop/dfs/name
     environment:
-      - KAFKA_BROKER_ID=2
-      - KAFKA_NODE_ID=2
-      - KAFKA_PROCESS_ROLES=broker,controller
-      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafk-1:9093,2@kafk-2:9093,3@kafk-3:9093
-      - KAFKA_LISTENERS=INTERNAL://:9092,CONTROLLER://:9093,PLAINTEXT://:9094
-      - KAFKA_ADVERTISED_LISTENERS=INTERNAL://kafk-2:9092,CONTROLLER://kafk-2:9093,PLAINTEXT://kafk-2:9094
-      - KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL
-      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
-      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
-      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
-      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
-      - KAFKA_LOG_DIRS=/tmp/kraft-combined_logs
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - CLUSTER_NAME=test
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+    env_file:
+      - ./hadoop.env
     ports:
-      - 39092:9094
-
-  kafk-3:
-    # Similar for kafk-3, adjust ports and IDs
-    image: apache/kafka:3.9.0
-    container_name: kafk-3
-    hostname: kafk-3
+      - "9870:9870"
+      - "9000:9000"
     networks:
-      - kafka-net
       - shared-network
-    environment:
-      - KAFKA_BROKER_ID=3
-      - KAFKA_NODE_ID=3
-      - KAFKA_PROCESS_ROLES=broker,controller
-      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafk-1:9093,2@kafk-2:9093,3@kafk-3:9093
-      - KAFKA_LISTENERS=INTERNAL://:9092,CONTROLLER://:9093,PLAINTEXT://:9094
-      - KAFKA_ADVERTISED_LISTENERS=INTERNAL://kafk-3:9092,CONTROLLER://kafk-3:9093,PLAINTEXT://kafk-3:9094
-      - KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL
-      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
-      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
-      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
-      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
-      - KAFKA_LOG_DIRS=/tmp/kraft-combined_logs
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-    ports:
-      - 49092:9094
 
-  connect:
-    image: confluentinc/cp-kafka-connect:7.0.1
-    container_name: connect
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
     depends_on:
-      - kafk-1
-      - kafk-2
-      - kafk-3
-    networks:
-      - kafka-net
-      - shared-network
-    environment:
-      - CONNECT_BOOTSTRAP_SERVERS=kafk-1:9094,kafk-2:9094,kafk-3:9094
-      - CONNECT_REST_ADVERTISED_HOST_NAME=connect
-      - CONNECT_REST_LISTENERS=http://0.0.0.0:8083
-      - CONNECT_GROUP_ID=connect-group
-      - CONNECT_CONFIG_STORAGE_TOPIC=connect-config
-      - CONNECT_OFFSET_STORAGE_TOPIC=connect-offsets
-      - CONNECT_STATUS_STORAGE_TOPIC=connect-status
-      - CONNECT_KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter
-      - CONNECT_VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter
-      - CONNECT_INTERNAL_KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter
-      - CONNECT_INTERNAL_VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter
-      - CONNECT_LOG4J_ROOT_LOGLEVEL=INFO
-      - CONNECT_PLUGIN_PATH=/usr/share/java,/usr/share/confluent-hub-components
+      - namenode
+    volumes:
+      - ../HDFS/datanode:/hadoop/dfs/data
+    env_file:
+      - ./hadoop-hive.env
     ports:
-      - 8083:8083
+      - "9864:9864"
+    networks:
+      - shared-network
+
+  hive-server:
+    image: gamberooni/hive-postgres-metastore:hive-3.1.2
+    container_name: hive-server
+    env_file:
+      - ./hadoop-hive.env
+    environment:
+      HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore/metastore"
+      SERVICE_PRECONDITION: "hive-metastore:9083"
+    ports:
+      - "10000:10000"
+    depends_on:
+      - hive-metastore
+      - hive-metastore-postgresql
+      - namenode
+      - datanode
+    networks:
+      - shared-network
+
+  hive-metastore:
+    image: gamberooni/hive-postgres-metastore:hive-3.1.2
+    container_name: hive-metastore
+    env_file:
+      - ./hadoop-hive.env
+    command: /opt/hive/bin/hive --service metastore
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870 datanode:9864 hive-metastore-postgresql:5432"
+    ports:
+      - "9083:9083"
+    depends_on:
+      - hive-metastore-postgresql
+      - namenode
+      - datanode
+    networks:
+      - shared-network
+
+  hive-metastore-postgresql:
+    image: bde2020/hive-metastore-postgresql:3.1.0
+    container_name: hive-metastore-postgresql
+    ports:
+      - "5432:5432"
+    volumes:
+      - ../PostgreSQL/:/var/lib/postgresql/data
+    networks:
+      - shared-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    env_file:
+      - .env
+    command: server /data --console-address ":9001"
+    ports:
+      - "9100:9000"
+      - "9001:9001"
+    volumes:
+      - ../minio/data:/export
+      - ../minio/config:/root/.minio
+    networks:
+      - shared-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:90000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  spark-master:
+    # build:
+    #   context: ../Spark/master
+    #   dockerfile: Dockerfile
+    image: bitnami/spark:latest
+    container_name: spark-master
+    hostname: spark-master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    environment:
+      - SPARK_MODE=master
+    volumes:
+      - ../PipelineTest.py:/opt/bitnami/spark/PipelineTest.py
+    # Override CMD từ Dockerfile để chạy tiến trình Spark master thay vì JupyterLab
+    command: ["spark-class", "org.apache.spark.deploy.master.Master"]
+    networks:
+      - shared-network
+
+  spark-worker:
+    # build:
+    #   context: ../Spark/worker
+    #   dockerfile: Dockerfile
+    image: bitnami/spark:latest
+    container_name: spark-worker
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER=spark://spark-master:7077
+    ports:
+      - "8081:8081"
+    volumes:
+      - ../PipelineTest.py:/opt/bitnami/spark/PipelineTest.py
+    networks:
+      - shared-network
+
+  notebook:
+     image: jupyter/pyspark-notebook:spark-3.5.0
+     container_name: notebook
+     ports:
+       - "8888:8888"
+       - "4040:4040"
+     environment:
+       - PYSPARK_SUBMIT_ARGS=--master spark://spark-master:7077 --packages org.apache.iceberg:iceberg-spark-runtime-3.3_2.12:1.3.0,org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.5 pyspark-shell
+       - SPARK_DIST_CLASSPATH=$(hadoop classpath)
+     volumes:
+       - ./work:/home/jovyan/work
+     networks:
+       - shared-network
+
+volumes:
+  minio_data:
+  minio_config:
+  metastore_db_data:
+
+networks:
+  shared-network:
+    driver: bridge
