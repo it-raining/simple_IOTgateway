@@ -34,7 +34,7 @@
   # Cài đặt các gói hệ thống cần thiết và pip (nếu chưa có)
   RUN install_packages python3-pip wget procps software-properties-common libpq-dev
   
-  # Cài đặt Jupyter Notebook/Lab và các package Python cần thiết
+  # Cài đặt các package Python cần thiết
   RUN pip install --no-cache-dir psycopg2-binary kafka-python requests confluent-kafka
   
   # Cài đặt MinIO client (mc) để giao tiếp với MinIO

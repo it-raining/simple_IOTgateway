@@ -232,19 +232,6 @@ services:
     networks:
       - shared-network
 
-  notebook:
-     image: jupyter/pyspark-notebook:spark-3.3.0
-     container_name: notebook
-     ports:
-       - "8888:8888"
-       - "4040:4040"
-     environment:
-       - PYSPARK_SUBMIT_ARGS=--master spark://spark-master:7077 --packages org.apache.iceberg:iceberg-spark-runtime-3.3_2.12:1.3.0,org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.0,org.apache.hadoop:hadoop-aws:3.3.1,com.amazonaws:aws-java-sdk-bundle:1.11.1026 pyspark-shell
-     volumes:
-       - ./work:/home/jovyan/work
-     networks:
-       - shared-network
-
 volumes:
   minio_data:
   minio_config:

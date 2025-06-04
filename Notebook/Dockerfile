@@ -16,9 +16,9 @@ FROM bitnami/spark:latest
 
 USER root
 
-# Cài đặt Jupyter Notebook và các gói Python cần thiết
+# Cài đặt các gói Python cần thiết
 RUN install_packages python3-pip && \
-    pip install --no-cache-dir jupyterlab notebook psycopg2-binary
+    pip install --no-cache-dir jupyterlab psycopg2-binary
 
 # Cài đặt MinIO client (mc) để giao tiếp với MinIO
 RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc && \
@@ -118,6 +118,3 @@ RUN echo 'spark.sql.catalog.iceberg org.apache.iceberg.spark.SparkCatalog' >> "$
 # Thiết lập thư mục làm việc cho user jovyan và chuyển sang user này
 WORKDIR /home/jovyan
 USER jovyan
-
-# CMD khởi chạy JupyterLab
-CMD ["jupyter", "lab", "--ip=0.0.0.0", "--no-browser", "--NotebookApp.token=''"]
