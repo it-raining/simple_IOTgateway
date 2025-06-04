@@ -1,46 +1,77 @@
-version: "3"
-
 services:
-  # zookeeper:
-  #   image: bitnami/zookeeper:latest
-  #   container_name: zookeeper
-  #   environment:
-  #     - ALLOW_ANONYMOUS_LOGIN=yes
-  #   ports:
-  #     - "2181:2181"
-  #   networks:
-  #     - shared-network
-
   kafka:
     image: bitnami/kafka:latest
     container_name: kafka
+    hostname: kafka
     networks:
       - shared-network
     environment:
       - KAFKA_BROKER_ID=1
       - KAFKA_CFG_NODE_ID=1
       - KAFKA_CFG_PROCESS_ROLES=broker,controller
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:29092
-      - KAFKA_CFG_LISTENERS=INTERNAL://:9092,PLAINTEXT://:29092
-      - KAFKA_CFG_ADVERTISED_LISTENERS=INTERNAL://kafka:9092,PLAINTEXT://kafka:29092
-      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=INTERNAL
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:29092,OUTSIDE://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,OUTSIDE://localhost:9093
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,OUTSIDE:PLAINTEXT
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
       - KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR=1
       - KAFKA_CFG_GROUP_INITIAL_REBALANCE_DELAY_MS=0
       - KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR=1
       - KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
-      - KAFKA_CFG_LOG_DIRS=/tmp/kraft-combined_logs
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_LOG_DIRS=/tmp/kraft-combined-logs
     ports:
       - "9092:9092"
+      - "9093:9093"
       - "29092:29092"
+
+  kafka-connect:
+    image: confluentinc/cp-kafka-connect:latest
+    container_name: kafka-connect
+    depends_on:
+      kafka:
+        condition: service_started
+    ports:
+      - "8083:8083"
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:9092
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: compose-connect-group
+      CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000
+      CONNECT_OFFSET_STORAGE_TOPIC: docker-connect-offsets
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_TOPIC: docker-connect-status
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+    networks:
+      - shared-network
+    restart: on-failure
+    command:
+      - bash
+      - -c
+      - |
+        echo "Waiting for Kafka to be ready..."
+        while ! nc -z kafka 9092; do
+          sleep 5
+        done
+        echo "Kafka is ready"
+        confluent-hub install --no-prompt confluentinc/kafka-connect-mqtt:latest
+        /etc/confluent/docker/run
 
   namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
     container_name: namenode
+    hostname: namenode
     restart: always
     volumes:
-      - ../HDFS/namenode:/hadoop/dfs/name
+      - ../hdfs/namenode:/hadoop/dfs/name
     environment:
       - CLUSTER_NAME=test
       - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
@@ -55,10 +86,11 @@ services:
   datanode:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
     container_name: datanode
+    hostname: datanode
     depends_on:
       - namenode
     volumes:
-      - ../HDFS/datanode:/hadoop/dfs/data
+      - ../hdfs/datanode:/hadoop/dfs/data
     env_file:
       - ./hadoop-hive.env
     ports:
@@ -67,12 +99,13 @@ services:
       - shared-network
 
   hive-server:
-    image: gamberooni/hive-postgres-metastore:hive-3.1.2
+    image: bde2020/hive:2.3.2-postgresql-metastore
     container_name: hive-server
+    hostname: hive-server
     env_file:
       - ./hadoop-hive.env
     environment:
-      HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore/metastore"
+      HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore-postgresql:5432/metastore"
       SERVICE_PRECONDITION: "hive-metastore:9083"
     ports:
       - "10000:10000"
@@ -85,8 +118,9 @@ services:
       - shared-network
 
   hive-metastore:
-    image: gamberooni/hive-postgres-metastore:hive-3.1.2
+    image: bde2020/hive:2.3.2-postgresql-metastore
     container_name: hive-metastore
+    hostname: hive-metastore
     env_file:
       - ./hadoop-hive.env
     command: /opt/hive/bin/hive --service metastore
@@ -104,6 +138,7 @@ services:
   hive-metastore-postgresql:
     image: bde2020/hive-metastore-postgresql:3.1.0
     container_name: hive-metastore-postgresql
+    hostname: hive-metastore-postgresql
     ports:
       - "5432:5432"
     volumes:
@@ -114,28 +149,43 @@ services:
   minio:
     image: minio/minio:latest
     container_name: minio
-    env_file:
-      - .env
+    hostname: minio
+    environment:
+      MINIO_ACCESS_KEY: test
+      MINIO_SECRET_KEY: 12345678
     command: server /data --console-address ":9001"
     ports:
       - "9100:9000"
       - "9001:9001"
     volumes:
-      - ../minio/data:/export
+      - ../minio/data:/data
       - ../minio/config:/root/.minio
     networks:
       - shared-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:90000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 30s
       timeout: 20s
       retries: 3
 
+  minio-setup:
+    image: minio/mc:latest
+    container_name: minio-setup
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 10;
+      /usr/bin/mc alias set myminio http://minio:9000 test 12345678;
+      /usr/bin/mc mb myminio/sensor-data-minio || true;
+      /usr/bin/mc policy set public myminio/sensor-data-minio;
+      exit 0;
+      "
+    networks:
+      - shared-network
+
   spark-master:
-    # build:
-    #   context: ../Spark/master
-    #   dockerfile: Dockerfile
-    image: bitnami/spark:latest
+    image: bitnami/spark:3.3
     container_name: spark-master
     hostname: spark-master
     ports:
@@ -143,40 +193,53 @@ services:
       - "7077:7077"
     environment:
       - SPARK_MODE=master
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_DRIVER_MEMORY=2g
+      - SPARK_DRIVER_CORES=2
     volumes:
       - ../PipelineTest.py:/opt/bitnami/spark/PipelineTest.py
-    # Override CMD từ Dockerfile để chạy tiến trình Spark master thay vì JupyterLab
-    command: ["spark-class", "org.apache.spark.deploy.master.Master"]
+      - ../test_connectivity.py:/opt/bitnami/spark/test_connectivity.py
+      - ../Spark/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
     networks:
       - shared-network
+    depends_on:
+      - kafka
+      - namenode
+      - hive-metastore
+      - minio
 
   spark-worker:
-    # build:
-    #   context: ../Spark/worker
-    #   dockerfile: Dockerfile
-    image: bitnami/spark:latest
+    image: bitnami/spark:3.3
     container_name: spark-worker
+    hostname: spark-worker
     depends_on:
       - spark-master
+      - kafka
+      - namenode
+      - hive-metastore
+      - minio
     environment:
       - SPARK_MODE=worker
-      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=2g
+      - SPARK_WORKER_CORES=2
     ports:
       - "8081:8081"
     volumes:
       - ../PipelineTest.py:/opt/bitnami/spark/PipelineTest.py
+      - ../test_connectivity.py:/opt/bitnami/spark/test_connectivity.py
+      - ../Spark/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
     networks:
       - shared-network
 
   notebook:
-     image: jupyter/pyspark-notebook:spark-3.5.0
+     image: jupyter/pyspark-notebook:spark-3.3.0
      container_name: notebook
      ports:
        - "8888:8888"
        - "4040:4040"
      environment:
-       - PYSPARK_SUBMIT_ARGS=--master spark://spark-master:7077 --packages org.apache.iceberg:iceberg-spark-runtime-3.3_2.12:1.3.0,org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.5 pyspark-shell
-       - SPARK_DIST_CLASSPATH=$(hadoop classpath)
+       - PYSPARK_SUBMIT_ARGS=--master spark://spark-master:7077 --packages org.apache.iceberg:iceberg-spark-runtime-3.3_2.12:1.3.0,org.apache.spark:spark-sql-kafka-0-10_2.12:3.3.0,org.apache.hadoop:hadoop-aws:3.3.1,com.amazonaws:aws-java-sdk-bundle:1.11.1026 pyspark-shell
      volumes:
        - ./work:/home/jovyan/work
      networks:

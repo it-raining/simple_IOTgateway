@@ -14,7 +14,7 @@
     "value.converter": "org.apache.kafka.connect.json.JsonConverter",
     "key.converter.schemas.enable": "false",
     "value.converter.schemas.enable": "false",
-    "confluent.topic.bootstrap.servers": "kafk-1:9094,kafk-2:9094,kafk-3:9094",
+    "confluent.topic.bootstrap.servers": "kafka:9092",
     "confluent.topic.replication.factor": "1"
   }
 }
