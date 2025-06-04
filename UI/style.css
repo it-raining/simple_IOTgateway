@@ -456,3 +456,159 @@ img.avatar {
 .card .legend {
     margin-top: 10px; /* Thêm chút không gian phía trên legend nếu biểu đồ gần quá */
 }
+/* Thêm các style mới này vào cuối file style.css của bạn */
+
+/* --- Tab System Styles --- */
+.view-tabs {
+    display: flex;
+    gap: 8px;
+    margin-left: auto; /* Đẩy các tab về bên phải */
+}
+
+.view-tabs .tab-button {
+    padding: 8px 16px;
+    font-weight: 500;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.view-tabs .tab-button:hover {
+    background-color: var(--secondary-color);
+    color: var(--primary-color);
+}
+
+.view-tabs .tab-button.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.tab-content {
+    display: none; /* Ẩn tất cả các tab content theo mặc định */
+    grid-column: 1 / -1; /* Đảm bảo content chiếm toàn bộ grid */
+    flex-direction: column; /* Thêm cho #chart-view */
+    gap: 25px; /* Thêm cho #chart-view */
+}
+
+.tab-content.active {
+    display: grid; /* Hiển thị tab đang active */
+}
+
+#folder-view.active {
+    display: block; /* Ghi đè grid thành block cho folder view */
+}
+
+
+/* --- Breadcrumbs Styles --- */
+.breadcrumbs {
+    padding: 10px 15px;
+    background-color: #f8f9fa;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.breadcrumbs a {
+    color: var(--primary-color);
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.breadcrumbs span {
+    margin: 0 8px;
+    color: var(--text-muted);
+}
+
+/* --- File Table Styles --- */
+.file-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.file-table th, .file-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.file-table thead {
+    background-color: #f8f9fa;
+}
+
+.file-table th {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.file-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.file-table tbody tr:hover {
+    background-color: var(--active-bg);
+}
+
+.file-table .file-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+}
+
+.file-table .file-icon {
+    font-size: 18px;
+}
+
+.file-table .folder-item {
+    cursor: pointer;
+    color: var(--text-color);
+}
+
+.file-table .folder-item:hover {
+    color: var(--primary-color);
+}
+
+.file-table .file-size {
+    color: var(--text-muted);
+}
+.search-bar-container {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+#file-search-input {
+    width: 100%;
+    padding: 10px 15px 10px 40px; /* Thêm padding bên trái cho icon */
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+/* Thêm icon tìm kiếm vào bên trong ô input */
+.search-bar-container::before {
+    content: '🔍';
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 16px;
+}
+
+/* Style cho đường dẫn file trong kết quả tìm kiếm */
+.file-path {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 400;
+    margin-top: 2px;
+}

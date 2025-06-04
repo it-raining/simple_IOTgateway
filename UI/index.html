@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard UI Clone</title>
+    <title>Dashboard UI - File Browser</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
     <div class="dashboard-container">
         <aside class="sidebar">
@@ -19,13 +21,10 @@
             </div>
             <nav class="sidebar-nav">
                 <ul>
-                    <li><a href="#"><span class="icon">🏠</span> Home</a></li>
-                    <li class="active"><a href="#"><span class="icon">📈</span> Anomaly Detection</a></li>
-                    <li><a href="#"><span class="icon">🔧</span> Optimize SQL</a></li>
-                    <li><a href="#"><span class="icon">💡</span> Generate Query</a></li>
-                    <li><a href="#"><span class="icon">⏱️</span> Monitoring Slow Query</a></li>
-                    <li><a href="#"><span class="icon">👥</span> Users</a></li>
-                    <li><a href="#"><span class="icon">📄</span> Placeholder</a></li>
+                    <li class="active"><a href="#" data-view="folder-view"><span class="icon">🏠</span> File
+                            Explorer</a></li>
+                    <li><a href="#" data-view="chart-view"><span class="icon">📈</span> Data Visualization</a></li>
+                    <li><a href="#" data-view="query-view"><span class="icon">🔧</span> Query Data</a></li>
                 </ul>
             </nav>
             <div class="sidebar-separator"></div>
@@ -56,77 +55,74 @@
         <main class="main-content">
             <header class="content-header">
                 <div class="header-left">
-                    <h1>Anomaly Detection</h1>
-                    <p>Welcome back, Olivia</p>
+                    <h1>File Explorer</h1>
+                    <p>Chào mừng trở lại, Admin</p>
                 </div>
-                <div class="header-filters">
-                    <button data-period="12months">12 months</button>
-                    <button data-period="28days">28 days</button>
-                    <button class="active" data-period="7days">7 days</button>
-                    <button data-period="24hours">24 hours</button>
-                </div>
-                <div class="header-alert">
-                    <div class="alert-icon">⚠️</div>
-                    <div class="alert-content">
-                        <strong>Alert Anomaly Detection</strong>
-                        <p>The system has detected an anomaly... identify the cause and prevent potential issues.</p>
-                    </div>
-                    <button class="close-alert">×</button>
+                <div class="view-tabs">
+                    <button class="tab-button active" data-tab="folder-view">📁 Thư mục</button>
+                    <button class="tab-button" data-tab="chart-view">📊 Biểu đồ</button>
                 </div>
             </header>
 
-            <section class="content-body">
-                <div class="card large-card">
-                    <div class="card-header">
-                        <h3>Point Detection right now</h3>
-                        <a href="#" class="real-time-link">Real time report</a>
+            <div class="content-body">
+                <div id="folder-view" class="tab-content active">
+                    <div class="breadcrumbs">
                     </div>
-                    <div class="chart-container">
-                        <canvas id="lineChartCanvas"></canvas>
+                    <div class="search-bar-container">
+                        <input type="text" id="file-search-input"
+                            placeholder="Tìm kiếm file và thư mục trong toàn bộ hệ thống...">
                     </div>
+                    <table class="file-table">
+                        <thead>
+                            <tr>
+                                <th>Tên</th>
+                                <th>Ngày sửa đổi</th>
+                                <th>Kích thước file</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
                 </div>
 
-                <div class="card">
-                    <div class="card-header">
-                        <h3>Top 5 Metrics That Cause</h3>
-                        <span class="options-icon">⋮</span>
+                <div id="chart-view" class="tab-content">
+                    <div class="card large-card">
+                        <div class="card-header">
+                            <h3>Point Detection right now</h3>
+                            <div class="header-filters">
+                                <button data-period="12months">12 months</button>
+                                <button data-period="28days">28 days</button>
+                                <button class="active" data-period="7days">7 days</button>
+                                <button data-period="24hours">24 hours</button>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="lineChartCanvas"></canvas>
+                        </div>
                     </div>
-                    <div class="chart-container" id="donutChartContainer">
-                        <canvas id="donutChartCanvas"></canvas>
-                    </div>
-                    <div class="legend">
-                        <div><span class="legend-color" style="background-color: #7a5af5;"></span> CPU</div>
-                        <div><span class="legend-color" style="background-color: #b8aafb;"></span> Graphics</div>
-                        <div><span class="legend-color" style="background-color: #d6d1fc;"></span> Page Head</div>
-                        <div><span class="legend-color" style="background-color: #e8e6fd;"></span> Checkpoint</div>
-                        <div><span class="legend-color" style="background-color: #f4f3fe;"></span> Other</div>
-                    </div>
-                </div>
 
-                <div class="card">
-                    <div class="card-header">
-                        <h3>Some suggestions to help diagnose for CPU</h3>
-                        <button class="close-card">×</button>
-                    </div>
-                    <div class="card-content">
-                        <p><strong>Distribute workload:</strong> If possible, distribute heavy operations during off-peak hours or across different servers to prevent CPU overload.</p>
-                        <p><strong>Connection Pooling:</strong> Optimize connection pooling to manage the number of concurrent database connections effectively.</p>
-                    </div>
-                </div>
-                <div class="card">
-                    <div class="card-header">
-                        <h3>Some suggestions to help diagnose for CPU</h3>
-                        <button class="close-card">×</button>
-                    </div>
-                    <div class="card-content">
-                        <p><strong>Enable Deadlock Monitoring:</strong> Use database tools to log deadlock occurrences. In SQL Server, you can enable trace flags to capture deadlock details.</p>
-                        <p><strong>Identify Problematic Transactions:</strong> Review the transaction patterns causing deadlocks...</p>
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Top 5 Metrics That Cause</h3>
+                            <span class="options-icon">⋮</span>
+                        </div>
+                        <div class="chart-container" id="donutChartContainer">
+                            <canvas id="donutChartCanvas"></canvas>
+                        </div>
+                        <div class="legend">
+                            <div><span class="legend-color" style="background-color: #7a5af5;"></span> CPU</div>
+                            <div><span class="legend-color" style="background-color: #b8aafb;"></span> Graphics</div>
+                            <div><span class="legend-color" style="background-color: #d6d1fc;"></span> Page Head</div>
+                            <div><span class="legend-color" style="background-color: #e8e6fd;"></span> Checkpoint</div>
+                            <div><span class="legend-color" style="background-color: #f4f3fe;"></span> Other</div>
+                        </div>
                     </div>
                 </div>
-            </section>
+            </div>
         </main>
     </div>
 
     <script src="dashboard-charts.js"></script>
 </body>
+
 </html>
