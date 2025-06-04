@@ -7,15 +7,15 @@
 #include <time.h>
 
 // WiFi credentials (replace with your own)
-const char* ssid = "ACLAB";
-const char* password = "ACLAB2023";
+const char *ssid = "ACLAB";
+const char *password = "ACLAB2023";
 
 // MQTT broker details (replace with your HiveMQ Cloud credentials)
-const char* mqtt_server = "5a6b7a5064ab4e2f8065a560661324cc.s1.eu.hivemq.cloud";  // Your HiveMQ Cloud host
-const int mqtt_port = 8883;  // Secure port
-const char* mqtt_user = "1khoaho";
-const char* mqtt_password = "Hdk31415";
-const char* root_topic = "/esp32/";  // Root topic for data
+const char *mqtt_server = "5a6b7a5064ab4e2f8065a560661324cc.s1.eu.hivemq.cloud";
+const int mqtt_port = 8883; // Secure port
+const char *mqtt_user = "1khoaho";
+const char *mqtt_password = "Hdk31415";
+const char *root_topic = "/esp32/"; // Root topic for data
 
 // Sensor pins
 #define SOIL_MOISTURE_PIN 34
@@ -24,13 +24,16 @@ const char* root_topic = "/esp32/";  // Root topic for data
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
 DHT20 dht20;
+unsigned long lastPublishTime = 0;
 
-void setup() {
+void setup()
+{
   Serial.begin(115200);
 
   // Connect to WiFi
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED)
+  {
     delay(500);
     Serial.println("Connecting to WiFi...");
   }
@@ -38,7 +41,8 @@ void setup() {
 
   configTime(0, 0, "pool.ntp.org");
   struct tm timeinfo;
-  while (!getLocalTime(&timeinfo)) {
+  while (!getLocalTime(&timeinfo))
+  {
     Serial.println("Waiting for time sync...");
     delay(1000);
   }
@@ -50,21 +54,31 @@ void setup() {
   dht20.begin();
 }
 
-void connectMQTT() {
-  while (!client.connected()) {
+void connectMQTT()
+{
+  while (!client.connected())
+  {
     Serial.println("Connecting to MQTT...");
     String clientId = "ESP32Client-" + String(random(0xffff), HEX);
-    if (client.connect(clientId.c_str(), mqtt_user, mqtt_password)) {
+    if (client.connect(clientId.c_str(), mqtt_user, mqtt_password))
+    {
       Serial.println("Connected to MQTT!");
-    } else {
+    }
+    else
+    {
       Serial.print("Failed to connect, MQTT state: ");
       Serial.println(client.state());
 
-      if (client.state() == -2) {
+      if (client.state() == -2)
+      {
         Serial.println("SSL/TLS handshake failed. Check CA certificate or setInsecure().");
-      } else if (client.state() == 5) {
+      }
+      else if (client.state() == 5)
+      {
         Serial.println("Authentication failed! Check MQTT username/password.");
-      } else if (client.state() == -1) {
+      }
+      else if (client.state() == -1)
+      {
         Serial.println("Connection timeout. Check server availability.");
       }
 
@@ -74,43 +88,58 @@ void connectMQTT() {
   }
 }
 
-
-void loop() {
-  if (!client.connected()) {
+void loop()
+{
+  if (!client.connected())
+  {
     connectMQTT();
   }
   client.loop();
 
-  // Get current UTC time
-  time_t now;
-  struct tm timeinfo;
-  time(&now);
-  gmtime_r(&now, &timeinfo);  // Use UTC time
+  unsigned long currentMillis = millis();
+  if (currentMillis - lastPublishTime >= 5000)
+  {
+    lastPublishTime = currentMillis; // Update last publish time
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
+    gmtime_r(&now, &timeinfo); // Use UTC time
 
-  char timestamp[25];
-  strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", &timeinfo); // Format timestamp as "YYYY-MM-DDTHH:MM:SSZ"
-  // Read sensor data
-  float temperature = dht20.getTemperature();
-  float humidity = dht20.getHumidity();
-  int soil_moisture = analogRead(SOIL_MOISTURE_PIN);
-  int light = analogRead(LIGHT_PIN);
+    char timestamp[25];
+    strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", &timeinfo); // Format timestamp as "YYYY-MM-DDTHH:MM:SSZ"
+    int status = dht20.read();
+    float temperature = -1; // Default to Not-a-Number
+    float humidity = -1;
 
-  // Create JSON object
-  JsonDocument doc;
-  doc["timestamp"] = timestamp;
-  doc["temperature"] = temperature;
-  doc["humidity"] = humidity;
-  doc["soil_moisture"] = soil_moisture;
-  doc["light"] = light;
+    if (status == DHT20_OK)
+    {
+      temperature = dht20.getTemperature();
+      humidity = dht20.getHumidity();
+    }
+    else
+    {
+      Serial.print("DHT20 read error: ");
+      Serial.println(status);
+    }
+    int soil_moisture = analogRead(SOIL_MOISTURE_PIN);
+    int light = analogRead(LIGHT_PIN);
 
-  // Serialize JSON to string
-  char jsonBuffer[256];
-  serializeJson(doc, jsonBuffer);
+    // Create JSON object
+    JsonDocument doc;
+    doc["timestamp"] = timestamp;
+    doc["temperature"] = temperature;
+    doc["humidity"] = humidity;
+    doc["soil_moisture"] = soil_moisture;
+    doc["light"] = light;
 
-  // Publish to MQTT topic
-  client.publish(root_topic, jsonBuffer);
+    // Serialize JSON to string
+    char jsonBuffer[256];
+    serializeJson(doc, jsonBuffer);
 
-  Serial.println("Published sensor data:");
-  Serial.println(jsonBuffer);
-  delay(5000);  // Publish every 5 seconds
+    // Publish to MQTT topic
+    client.publish(root_topic, jsonBuffer);
+
+    Serial.println("Published sensor data:");
+    Serial.println(jsonBuffer);
+  }
 }
